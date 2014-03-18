@@ -46,9 +46,9 @@ public class Card : MonoBehaviour, ICard
 	
 	void Start()
 	{
-		health = Random.Range(0,8);
+		health = Random.Range(1,8);
 		damage = Random.Range(0,8);
-		mana = Random.Range(0,8);
+		mana = Random.Range(1,8);
 		
 		CardUpdated();
 	}
