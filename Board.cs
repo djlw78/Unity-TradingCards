@@ -27,8 +27,8 @@ public class Board : MonoBehaviour, ICard {
 	public Turn turn = Turn.Friendly;
 	
 	public int maxMana = 1;
-	public int friendlyMana = 1;
-	public int opponentMana = 1;
+	public int friendlyMana = 0;
+	public int opponentMana = 0;
 	
 	bool canDrawCard = true;
 	public int turnNumber = 1;
