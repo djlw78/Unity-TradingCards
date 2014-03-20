@@ -154,7 +154,7 @@ public class Board : MonoBehaviour, ICard {
 		
 		PresentTable();
 		PresentHand();
-	}//done
+	}
 	
 	public void PlaceCard(Card card)
 	{
@@ -186,7 +186,7 @@ public class Board : MonoBehaviour, ICard {
 		
 		PresentTable();
 		PresentHand();
-	}//done
+	}
 	
 	public void PresentHand()
 	{
@@ -209,7 +209,7 @@ public class Board : MonoBehaviour, ICard {
 			card.GetComponent<Card>().newPos = opponentHandPos.position + new Vector3(-numberOfCards + space2 - 2,0,0);
 			space2 += gap;
 		}
-	}//done
+	}
 	
 	public void PresentTable()
 	{
@@ -240,12 +240,46 @@ public class Board : MonoBehaviour, ICard {
 		opponentManaText.text = opponentMana.ToString() + "/" + maxMana;
 		
 		OpponentAI();
+		
+		if(friendlyHero.health <= 0)
+			EndGame(opponentHero);
+		if(opponentHero.health <= 0)
+			EndGame(friendlyHero);
 	}
 	
 	void OpponentAI()
 	{
 		if(turn == Turn.Opponent)
 		{
+			#region attacking
+			foreach(GameObject Card in opponentTableCards)
+			{
+				Card card = Card.GetComponent<Card>();
+				
+				if(card.canPlay)
+				{
+					float changeToAttackhero = Random.value;
+					
+					if(changeToAttackhero < 0.20f)
+					{
+						card.AttackHero(card, friendlyHero, delegate {
+							card.canPlay = false;
+						});
+					}
+					else
+					{
+						int random = Random.Range(0, friendlyTableCards.Count);
+						GameObject CardToAttack = friendlyTableCards[random];
+						
+						card.Attack(card, CardToAttack.GetComponent<Card>(), delegate(){
+							card.canPlay = false;
+						});
+					}
+				}
+			}
+			#endregion
+			
+			#region placing cards
 			float chanceToPlace = Random.value;
 			
 			if(opponentHandCards.Count == 0)
@@ -261,6 +295,7 @@ public class Board : MonoBehaviour, ICard {
 					EndTurn();
 				}
 			}
+			#endregion
 		}
 	}//random
 	
@@ -292,6 +327,19 @@ public class Board : MonoBehaviour, ICard {
 		{
 			DrawCardFromDeck(Card.Team.Friendly);
 			turn = Turn.Opponent;
+		}
+	}
+	
+	void EndGame(Hero winner)
+	{
+		if(winner == friendlyHero)
+		{
+			
+		}
+		
+		if(winner == opponentHero)
+		{
+			
 		}
 	}
 	
