@@ -21,17 +21,19 @@ public class Board : MonoBehaviour, ICard {
 	public Transform opponentTablePos;
 	
 	public TextMesh friendlyManaText;
-	public TextMesh opponentManaText;	
+	public TextMesh opponentManaText;
+	
+	public Hero friendlyHero;
+	public Hero opponentHero;
 	
 	public enum Turn { Friendly, Opponent };
 	public Turn turn = Turn.Friendly;
 	
-	public int maxMana = 1;
-	public int friendlyMana = 0;
-	public int opponentMana = 0;
-	
-	bool canDrawCard = true;
-	public int turnNumber = 1;
+	int maxMana = 1;
+	int friendlyMana = 1;
+	int opponentMana = 1;
+
+	int turnNumber = 1;
 	
 	public Card.CardEvent CardChanged;
 	
@@ -61,6 +63,17 @@ public class Board : MonoBehaviour, ICard {
 		
 		PositionUpdate();
 		PresentHand();
+		
+		GameStart();
+	}
+	
+	void GameStart()
+	{
+		for(int i = 0; i<3; i++)
+		{
+			DrawCardFromDeck(Card.Team.Friendly);
+			DrawCardFromDeck(Card.Team.Opponent);
+		}
 	}
 	
 	void PositionUpdate()
@@ -90,32 +103,30 @@ public class Board : MonoBehaviour, ICard {
 	
 	public void DrawCardFromDeck(Card.Team team)
 	{
-		if(canDrawCard)
+
+		if(team == Card.Team.Friendly && friendlyDeckCards.Count != 0 && friendlyHandCards.Count < 10)
 		{
-			if(team == Card.Team.Friendly && friendlyDeckCards.Count != 0)
-			{
-				int random = Random.Range(0, friendlyDeckCards.Count);
-				GameObject tempCard = friendlyDeckCards[random];
-				
-				//tempCard.transform.position = friendlyHandPos.position;
-				tempCard.GetComponent<Card>().newPos = friendlyHandPos.position;
-				tempCard.GetComponent<Card>().SetCardStatus(Card.CardStatus.InHand);
-				
-				friendlyDeckCards.Remove(tempCard);
-				friendlyHandCards.Add(tempCard);
-			}
+			int random = Random.Range(0, friendlyDeckCards.Count);
+			GameObject tempCard = friendlyDeckCards[random];
 			
-			if(team == Card.Team.Opponent && opponentDeckCards.Count != 0)
-			{
-				int random = Random.Range(0, opponentDeckCards.Count);
-				GameObject tempCard = opponentDeckCards[random];
-				
-				tempCard.transform.position = opponentHandPos.position;
-				tempCard.GetComponent<Card>().SetCardStatus(Card.CardStatus.InHand);
-				
-				opponentDeckCards.Remove(tempCard);
-				opponentHandCards.Add(tempCard);
-			}
+			//tempCard.transform.position = friendlyHandPos.position;
+			tempCard.GetComponent<Card>().newPos = friendlyHandPos.position;
+			tempCard.GetComponent<Card>().SetCardStatus(Card.CardStatus.InHand);
+			
+			friendlyDeckCards.Remove(tempCard);
+			friendlyHandCards.Add(tempCard);
+		}
+		
+		if(team == Card.Team.Opponent && opponentDeckCards.Count != 0  && opponentHandCards.Count < 10)
+		{
+			int random = Random.Range(0, opponentDeckCards.Count);
+			GameObject tempCard = opponentDeckCards[random];
+			
+			tempCard.transform.position = opponentHandPos.position;
+			tempCard.GetComponent<Card>().SetCardStatus(Card.CardStatus.InHand);
+			
+			opponentDeckCards.Remove(tempCard);
+			opponentHandCards.Add(tempCard);
 		}
 		
 		PresentHand();
@@ -147,7 +158,7 @@ public class Board : MonoBehaviour, ICard {
 	
 	public void PlaceCard(Card card)
 	{
-		if(card.team == Card.Team.Friendly && friendlyMana - card.mana >= 0)
+		if(card.team == Card.Team.Friendly && friendlyMana - card.mana >= 0 && friendlyTableCards.Count < 10)
 		{
 			//card.gameObject.transform.position = friendlyTablePos.position;
 			card.GetComponent<Card>().newPos = friendlyTablePos.position;
@@ -158,10 +169,9 @@ public class Board : MonoBehaviour, ICard {
 			card.SetCardStatus(Card.CardStatus.OnTable);
 			
 			friendlyMana -= card.mana;
-			canDrawCard = false;
 		}
 		
-		if(card.team == Card.Team.Opponent)
+		if(card.team == Card.Team.Opponent && opponentMana - card.mana >= 0 && opponentTableCards.Count < 10)
 		{
 			//card.gameObject.transform.position = opponentTablePos.position;
 			card.GetComponent<Card>().newPos = opponentTablePos.position;
@@ -172,7 +182,6 @@ public class Board : MonoBehaviour, ICard {
 			card.SetCardStatus(Card.CardStatus.OnTable);
 			
 			opponentMana -= card.mana;
-			canDrawCard = false;
 		}
 		
 		PresentTable();
@@ -238,20 +247,17 @@ public class Board : MonoBehaviour, ICard {
 		if(turn == Turn.Opponent)
 		{
 			float chanceToPlace = Random.value;
-			print(chanceToPlace);
 			
 			if(opponentHandCards.Count == 0)
 			{
-				DrawCardFromDeck(Card.Team.Opponent);
 				EndTurn();
 			}
 			else
 			{
-				if(chanceToPlace < 0.5f)
+				if(chanceToPlace < 0.80f)
 					PlaceRandomCard(Card.Team.Opponent);
 				else
 				{
-					DrawCardFromDeck(Card.Team.Opponent);
 					EndTurn();
 				}
 			}
@@ -265,8 +271,7 @@ public class Board : MonoBehaviour, ICard {
 		
 		friendlyMana = maxMana;
 		opponentMana = maxMana;
-		
-		canDrawCard = true;
+
 		turnNumber += 1;
 		
 		currentCard = null;
@@ -278,26 +283,25 @@ public class Board : MonoBehaviour, ICard {
 		foreach(GameObject card in opponentTableCards)
 			card.GetComponent<Card>().canPlay = true;
 		
-		if(turn == Turn.Opponent) turn = Turn.Friendly;
-		else if(turn == Turn.Friendly) turn = Turn.Opponent;		
+		if(turn == Turn.Opponent)
+		{
+			DrawCardFromDeck(Card.Team.Opponent);
+			turn = Turn.Friendly;
+		}
+		else if(turn == Turn.Friendly)
+		{
+			DrawCardFromDeck(Card.Team.Friendly);
+			turn = Turn.Opponent;
+		}
 	}
 	
 	void OnGUI()
 	{
 		if(turn == Turn.Friendly)
 		{
-			if(GUI.Button(new Rect(Screen.width - 200,Screen.height/2 - 50, 100, 50), "Next Turn"))
+			if(GUI.Button(new Rect(Screen.width - 200,Screen.height/2 - 50, 100, 50), "End Turn"))
 			{
 				EndTurn();
-			}
-			
-			if(canDrawCard && friendlyDeckCards.Count > 0)
-			{
-				if(GUI.Button(new Rect(Screen.width - 200, Screen.height/2 +25, 100, 50), "Draw Card"))
-				{
-					DrawCardFromDeck(Card.Team.Friendly);
-					EndTurn();
-				}
 			}
 		}
 		
