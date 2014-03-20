@@ -35,7 +35,7 @@ public class Card : MonoBehaviour, ICard
 	
 	void Update()
 	{
-		transform.position = Vector3.Lerp(transform.position, newPos, Time.deltaTime * 20);
+		transform.position = Vector3.Lerp(transform.position, newPos, Time.deltaTime * 15);
 		
 		healthText.text = health.ToString();
 		damageText.text = damage.ToString();
@@ -47,7 +47,7 @@ public class Card : MonoBehaviour, ICard
 	void Start()
 	{
 		health = Random.Range(1,8);
-		damage = Random.Range(0,8);
+		damage = Random.Range(1,8);
 		mana = Random.Range(1,8);
 		
 		CardUpdated();
@@ -60,20 +60,34 @@ public class Card : MonoBehaviour, ICard
 	
 	public void Attack(Card attacker, Card target, CustomAction action)
 	{
-		target.health -= attacker.damage;
-		attacker.health -= target.damage;
-		
-		if(target.health <= 0)
+		if(attacker.canPlay)
 		{
-			Destroy(target);
+			target.health -= attacker.damage;
+			attacker.health -= target.damage;
+			
+			if(target.health <= 0)
+			{
+				Destroy(target);
+			}
+			
+			if(attacker.health <= 0)
+			{
+				attacker.Destroy(attacker);
+			}
+			
+			action();
 		}
-		
-		if(attacker.health <= 0)
+	}
+	
+	public void AttackHero(Card attacker, Hero target, CustomAction action)
+	{
+		if(attacker.canPlay)
 		{
-			attacker.Destroy(attacker);
+			target.health -= attacker.damage;
+			attacker.health -= target.damage;
+			
+			action();
 		}
-		
-		action();
 	}
 	
 	public void CardUpdated()
