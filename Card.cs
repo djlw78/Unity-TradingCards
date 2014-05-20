@@ -4,7 +4,7 @@ using System.Collections;
 [System.Serializable]
 public class Card : MonoBehaviour, ICard
 {
-	public string name = "Card";
+	public string name = "";
 	public string description = "Description";
 	public Texture2D image;
 	public int health;
@@ -29,6 +29,7 @@ public class Card : MonoBehaviour, ICard
 	public TextMesh damageText;
 	public TextMesh manaText;
 	public TextMesh debugText;
+	public TextMesh nameText;
 	#endregion
 	
 	public Vector3 newPos;
@@ -40,7 +41,6 @@ public class Card : MonoBehaviour, ICard
 		healthText.text = health.ToString();
 		damageText.text = damage.ToString();
 		manaText.text = mana.ToString();
-		
 		debugText.text = canPlay ? "Ready to attack" : "Nope";
 	}
 	
@@ -49,6 +49,11 @@ public class Card : MonoBehaviour, ICard
 		health = Random.Range(1,8);
 		damage = Random.Range(1,8);
 		mana = Random.Range(1,8);
+		
+		string[] characters = { "a", "b", "c", "d", "e", "f" };
+		
+		for(int i = 0; i<5; i++)
+			name += characters[Random.Range(0,characters.Length)];
 		
 		CardUpdated();
 	}
@@ -76,6 +81,7 @@ public class Card : MonoBehaviour, ICard
 			}
 			
 			action();
+			Board.instance.AddHistory(attacker, target);
 		}
 	}
 	
@@ -98,6 +104,7 @@ public class Card : MonoBehaviour, ICard
 		healthText.text = health.ToString();
 		damageText.text = damage.ToString();
 		manaText.text = mana.ToString();
+		nameText.text = name;
 	}
 	
 	void OnMouseDown()
@@ -131,13 +138,15 @@ public class Card : MonoBehaviour, ICard
 		}
 	}
 	
-	void Destroy(Card card)
+	public void Destroy(Card card)
 	{
 		if(card.team == Card.Team.Friendly)
 			Board.instance.friendlyTableCards.Remove(card.gameObject);
 		else if(card.team == Card.Team.Opponent)
 			Board.instance.opponentTableCards.Remove(card.gameObject);
 		
+		
+		Board.instance.PlaySound(Board.instance.cardDestroy);
 		Destroy(card.gameObject);
 		
 		Board.instance.PresentTable();
