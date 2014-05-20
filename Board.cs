@@ -32,13 +32,33 @@ public class Board : MonoBehaviour, ICard {
 	int maxMana = 1;
 	int friendlyMana = 1;
 	int opponentMana = 1;
-
+	
+	public bool gameStarted = false;
 	int turnNumber = 1;
 	
 	public Card.CardEvent CardChanged;
 	
+	public delegate void BoardUpdate();
+	public event BoardUpdate UpdateBoard;
+	
 	public Card currentCard;
 	public Card targetCard;
+	
+	public List<Hashtable> boardHistory = new List<Hashtable>();
+	
+	#region audio
+	public AudioClip cardDrop;
+	public AudioClip cardDestroy;
+	#endregion
+	
+	public void AddHistory(Card a, Card b)
+	{
+		Hashtable hash = new Hashtable();
+		
+		hash.Add(a, b);
+		
+		boardHistory.Add(hash);
+	}
 	
 	void Awake()
 	{
@@ -64,40 +84,18 @@ public class Board : MonoBehaviour, ICard {
 		PositionUpdate();
 		PresentHand();
 		
-		GameStart();
+		StartGame();
 	}
 	
-	void GameStart()
+	public void StartGame()
 	{
+		gameStarted = true;
+		OnUpdate();
+		
 		for(int i = 0; i<3; i++)
 		{
 			DrawCardFromDeck(Card.Team.Friendly);
 			DrawCardFromDeck(Card.Team.Opponent);
-		}
-	}
-	
-	void PositionUpdate()
-	{
-		foreach(GameObject CardObject in friendlyDeckCards)
-		{
-			Card c = CardObject.GetComponent<Card>();
-			
-			if(c.cardStatus == Card.CardStatus.InDeck)
-			{
-				//CardObject.transform.position = friendlyDeckPos.position + new Vector3(Random.value, Random.value, Random.value);
-				c.newPos = friendlyDeckPos.position + new Vector3(Random.value, Random.value, Random.value);
-			}
-		}
-		
-		foreach(GameObject CardObject in opponentDeckCards)
-		{
-			Card c = CardObject.GetComponent<Card>();
-			
-			if(c.cardStatus == Card.CardStatus.InDeck)
-			{
-				//CardObject.transform.position = opponentDeckPos.position + new Vector3(Random.value, Random.value, Random.value);
-				c.newPos = opponentDeckPos.position + new Vector3(Random.value, Random.value, Random.value);
-			}
 		}
 	}
 	
@@ -129,6 +127,7 @@ public class Board : MonoBehaviour, ICard {
 			opponentHandCards.Add(tempCard);
 		}
 		
+		OnUpdate();
 		PresentHand();
 	}
 	
@@ -150,6 +149,7 @@ public class Board : MonoBehaviour, ICard {
 			PlaceCard(tempCard.GetComponent<Card>());
 		}
 		
+		OnUpdate();
 		EndTurn();
 		
 		PresentTable();
@@ -167,6 +167,7 @@ public class Board : MonoBehaviour, ICard {
 			friendlyTableCards.Add(card.gameObject);
 			
 			card.SetCardStatus(Card.CardStatus.OnTable);
+			PlaySound(cardDrop);
 			
 			friendlyMana -= card.mana;
 		}
@@ -180,14 +181,17 @@ public class Board : MonoBehaviour, ICard {
 			opponentTableCards.Add(card.gameObject);
 			
 			card.SetCardStatus(Card.CardStatus.OnTable);
+			PlaySound(cardDrop);
 			
 			opponentMana -= card.mana;
 		}
 		
 		PresentTable();
 		PresentHand();
+		OnUpdate();
 	}
 	
+	#region positioning
 	public void PresentHand()
 	{
 		float space = 0f;
@@ -234,23 +238,60 @@ public class Board : MonoBehaviour, ICard {
 		}
 	}
 	
-	void Update()
+	void PositionUpdate()
+	{
+		foreach(GameObject CardObject in friendlyDeckCards)
+		{
+			Card c = CardObject.GetComponent<Card>();
+			
+			if(c.cardStatus == Card.CardStatus.InDeck)
+			{
+				//CardObject.transform.position = friendlyDeckPos.position + new Vector3(Random.value, Random.value, Random.value);
+				c.newPos = friendlyDeckPos.position + new Vector3(Random.value, Random.value, Random.value);
+			}
+		}
+		
+		foreach(GameObject CardObject in opponentDeckCards)
+		{
+			Card c = CardObject.GetComponent<Card>();
+			
+			if(c.cardStatus == Card.CardStatus.InDeck)
+			{
+				//CardObject.transform.position = opponentDeckPos.position + new Vector3(Random.value, Random.value, Random.value);
+				c.newPos = opponentDeckPos.position + new Vector3(Random.value, Random.value, Random.value);
+			}
+		}
+	}
+	#endregion
+	
+	void OnUpdate()
 	{
 		friendlyManaText.text = friendlyMana.ToString() + "/" + maxMana;
 		opponentManaText.text = opponentMana.ToString() + "/" + maxMana;
-		
-		OpponentAI();
 		
 		if(friendlyHero.health <= 0)
 			EndGame(opponentHero);
 		if(opponentHero.health <= 0)
 			EndGame(friendlyHero);
+		
+		//UpdateBoard();
+	}
+	
+	void OnNewTurn()
+	{
+		OnUpdate();
+		//UpdateBoard();
+		
+		if(turn == Turn.Opponent)
+			OpponentAI();
 	}
 	
 	void OpponentAI()
 	{
 		if(turn == Turn.Opponent)
 		{
+			Hashtable attacks = new Hashtable();
+			
 			#region attacking
 			foreach(GameObject Card in opponentTableCards)
 			{
@@ -260,22 +301,30 @@ public class Board : MonoBehaviour, ICard {
 				{
 					float changeToAttackhero = Random.value;
 					
-					if(changeToAttackhero < 0.20f)
+					if(changeToAttackhero < 0.50f)
 					{
 						card.AttackHero(card, friendlyHero, delegate {
 							card.canPlay = false;
 						});
 					}
-					else
+					else if(friendlyTableCards.Count > 0)
 					{
 						int random = Random.Range(0, friendlyTableCards.Count);
 						GameObject CardToAttack = friendlyTableCards[random];
 						
-						card.Attack(card, CardToAttack.GetComponent<Card>(), delegate(){
-							card.canPlay = false;
-						});
+						attacks.Add(card, CardToAttack.GetComponent<Card>());
 					}
 				}
+			}
+			
+			foreach(DictionaryEntry row in attacks)
+			{
+				Card tempCard = row.Key as Card;
+				Card temp2 = row.Value as Card;
+				
+				tempCard.Attack(tempCard, temp2, delegate {
+					tempCard.canPlay = false;
+				});
 			}
 			#endregion
 			
@@ -288,18 +337,13 @@ public class Board : MonoBehaviour, ICard {
 			}
 			else
 			{
-				if(chanceToPlace < 0.80f)
-					PlaceRandomCard(Card.Team.Opponent);
-				else
-				{
-					EndTurn();
-				}
+				PlaceRandomCard(Card.Team.Opponent);
 			}
 			#endregion
 		}
 	}//random
 	
-	public void EndTurn()
+	void EndTurn()
 	{
 		maxMana += 1;
 		if(maxMana >= 10) maxMana = 10;
@@ -328,6 +372,11 @@ public class Board : MonoBehaviour, ICard {
 			DrawCardFromDeck(Card.Team.Friendly);
 			turn = Turn.Opponent;
 		}
+		
+		PresentHand();
+		PresentTable();
+		
+		OnNewTurn();
 	}
 	
 	void EndGame(Hero winner)
@@ -345,14 +394,33 @@ public class Board : MonoBehaviour, ICard {
 	
 	void OnGUI()
 	{
-		if(turn == Turn.Friendly)
+		if(gameStarted)
 		{
-			if(GUI.Button(new Rect(Screen.width - 200,Screen.height/2 - 50, 100, 50), "End Turn"))
+			if(turn == Turn.Friendly)
 			{
-				EndTurn();
+				if(GUI.Button(new Rect(Screen.width - 200,Screen.height/2 - 50, 100, 50), "End Turn"))
+				{
+					EndTurn();
+				}
+			}
+			
+			GUI.Label(new Rect(0,0,100,50), "Turn: " + turn + " Turn Number: " + turnNumber.ToString());
+			
+			foreach(Hashtable history in boardHistory)
+			{
+				foreach(DictionaryEntry entry in history)
+				{
+					Card card1 = entry.Key as Card;
+					Card card2 = entry.Value as Card;
+					
+					GUILayout.Label(card1.name + " > " + card2.name);
+				}
 			}
 		}
-		
-		GUI.Label(new Rect(0,0,100,50), "Turn: " + turn + " Turn Number: " + turnNumber.ToString());
+	}
+	
+	public void PlaySound(AudioClip sound)
+	{
+		audio.PlayOneShot(sound);
 	}
 }
